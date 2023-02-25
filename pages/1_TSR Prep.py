@@ -16,7 +16,7 @@ Streamlit. We're generating a bunch of random numbers in a loop for around
 
 with st.container():
     with st.expander("upload", expanded=True):
-        col1, col2 = st.columns([2,1])
+        col1, col2 = st.columns(2)
         with col1:
             uploaded_file = st.file_uploader('Choose a file ', accept_multiple_files=False, type=["xlsx", "xls"], key="uploaded_file_key" )
         with col2:
