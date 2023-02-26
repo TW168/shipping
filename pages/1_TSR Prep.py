@@ -1,32 +1,32 @@
 import streamlit as st
 from datetime import datetime
 import pandas as pd
-from helper import extract_EZ_rpt_date_time, connect_to_database, clean_uploaded_IPG_EZ
+import plotly.express as px
+from helper import extract_EZ_rpt_date_time, connect_to_database, clean_uploaded_IPG_EZ, avail_to_ship, convert_df_to_csv
 
+DB = 'db3_db'
 
-st.set_page_config(page_title="TSR Prep", page_icon="📈", layout='wide')
+st.set_page_config(page_title="TSR Prep", page_icon="🚚", layout='wide')
 
 st.markdown("# TSR Prep")
 st.sidebar.header("TSR Prep")
 st.write(
-    """This demo illustrates a combination of plotting and animation with
-Streamlit. We're generating a bunch of random numbers in a loop for around
-5 seconds. Enjoy!"""
+    """ Update twice a day approx. 8AM and 4PM CST """
 )
 
 with st.container():
-    with st.expander("upload", expanded=True):
+    with st.expander("Upload", expanded=True):
         col1, col2 = st.columns(2)
         with col1:
-            uploaded_file = st.file_uploader('Choose a file ', accept_multiple_files=False, type=["xlsx", "xls"], key="uploaded_file_key" )
+            uploaded_file = st.file_uploader('Choose a file (e.g. AmTopp Current Pickup Detail Report as of yyyy-m-dd H#9M#0.xlsx)', accept_multiple_files=False, type=["xlsx", "xls"], key="uploaded_file_key", help="This app only accept Excel file from IPG EZ Report / Inteplast Management Improvement <ezreport@inteplast.com>" )
         with col2:
-            st.write('Upload the daily IPG/EZ from email')
+            pass
 
         # check if file has already been uploaded
         if uploaded_file is not None:
             file_name = uploaded_file.name
             file_size = uploaded_file.size
-            conn = connect_to_database('db3_db')
+            conn = connect_to_database(DB)
             result = conn.execute("SELECT * FROM ipg_ez WHERE file_name = %s AND file_size = %s", (file_name, file_size)).fetchone()
 
             if result:
@@ -45,31 +45,63 @@ with st.container():
                 cleaned_df.to_sql('ipg_ez', con=conn, if_exists='append', index=False)
                 conn.close()
     
-
+with st.container():
+    conn = connect_to_database(DB)
+    with st.expander("Ship list", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            # Extract distinct site from ipg_ez convert result to list and display items in select box
+            site_result = conn.execute("SELECT distinct Site FROM ipg_ez;").fetchall()
+            items = [str(item[0]) for item in site_result]
+            selected_site = st.selectbox("Choose a Site", items)
+        
+            # Extract distinct group from ipg_ez, convert result to list and display items in select box
+            group_result = conn.execute("select distinct Product_Group from ipg_ez;").fetchall()
+            items = [str(item[0]) for item in group_result]
+            selected_group = st.selectbox("Choose a Group", items)
+        with col2:
+            # Use calendar to repesent  rpt_run_date from ipg_ez
+            selected_date = st.date_input("Choose a date")
+            # Extract distinct rpt_run_time from ipg_ez, convert result to list and display items in select box
+            rpt_time_result = conn.execute("select distinct rpt_run_time from ipg_ez;").fetchall()
+            items = [str(item[0]) for item in rpt_time_result] 
+            selected_time = st.selectbox("Choose a time", items)
             
+        avail_to_ship_df= avail_to_ship(selected_site, selected_group, selected_date)
+        st.dataframe(avail_to_ship_df)
+
+        
+        st.download_button(
+        label="Download",
+        data=convert_df_to_csv(avail_to_ship_df),
+        file_name='TSR_Prep_List.csv',
+        mime='text/csv',
+        )
+
+
+try:
+    with st.container():
+        with st.expander('Map', expanded=True):
+            avail_to_ship_df["hover_text"] = (
+                                            ""
+                                            + avail_to_ship_df["BL_Number"].astype(str)
+                                            + "<br>PLT: "
+                                            + avail_to_ship_df["PLT"].astype(str)
+                                            + "<br>"
+                                            + avail_to_ship_df["Ship_to_Customer"].astype(str)
+            )
+            px.set_mapbox_access_token(open(".mapbox_token").read())
+            fig = px.scatter_mapbox(avail_to_ship_df, lat=avail_to_ship_df["lat"], lon=avail_to_ship_df["lon"], hover_name="hover_text", size="WGT", size_max=15, zoom=4, center={"lat": 37.09054375, "lon": -96.6249135},
+                    width=1200, height=750, title="BL Number Location")
+            fig.update_layout(mapbox_style="open-street-map")
+            fig.update_layout(margin={"r":0, "t":50, "l":0, "b":10})
+
+            st.plotly_chart(fig)
+except Exception as e:
+    st.warning(f"No data available")
+
+
 
 st.write('outside of container')
 
 
-
-
-
-# progress_bar = st.sidebar.progress(0)
-# status_text = st.sidebar.empty()
-# last_rows = np.random.randn(1, 1)
-# chart = st.line_chart(last_rows)
-
-# for i in range(1, 101):
-#     new_rows = last_rows[-1, :] + np.random.randn(5, 1).cumsum(axis=0)
-#     status_text.text("%i%% Complete" % i)
-#     chart.add_rows(new_rows)
-#     progress_bar.progress(i)
-#     last_rows = new_rows
-#     time.sleep(0.05)
-
-# progress_bar.empty()
-
-# # Streamlit widgets automatically run the script from top to bottom. Since
-# # this button is not connected to any other logic, it just causes a plain
-# # rerun.
-# st.button("Re-run")

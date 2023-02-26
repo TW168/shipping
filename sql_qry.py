@@ -40,3 +40,20 @@ use cfp;
 select indatetime, fpcpdt, pallet, ordno, orditm, quality, od, width, length, rolls, grswgt, tarwgt, filler, note from pallets
 limit 10
 """
+
+# insert new lat lon
+# INSERT INTO `db3`.`us_cities`
+# (
+# `city_ascii`,
+# `state_id`,
+
+# `lat`,
+# `lon`
+# )
+# VALUES
+# ("Pewaukee",
+# "WI",
+# "43.054206",
+# "-88.216903"
+
+# );
