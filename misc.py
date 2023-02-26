@@ -2,10 +2,10 @@ import streamlit as st
 import pandas as pd 
 from helper import connect_to_database
 
+DB='db3_db'
+conn = connect_to_database(DB)
 
-conn = connect_to_database('sakila_db')
-
-qry = """ select * from actor """
+qry = """ select * from ipg_ez """
 df = pd.read_sql_query(qry, con=conn)
 st.dataframe(df)
 conn.close()
