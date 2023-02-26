@@ -175,13 +175,13 @@ def clean_uploaded_IPG_EZ(
     return df
 
 
-def avail_to_ship(site, group, run_date):
+def avail_to_ship(site, group, run_date, run_time):
     conn = connect_to_database(DB)
     qry_available_ship_list = """ 
     SELECT Site, BL_Number, CSR, Truck_Appointment_Date, Ship_to_Customer, Ship_to_City, State, SUM(Pick_Weight) AS WGT, SUM(Number_of_Pallet) AS PLT, u.lat, u.lon
     FROM ipg_ez i
     left join us_cities u on i.State=u.state_id and i.Ship_to_City=u.city_ascii
-    where site= %s and Product_Group= %s and rpt_run_date = %s and rpt_run_time='09:00:00' and BL_Number not like "WZ%" and Product_Code not like "INSTER%" and Truck_Appointment_Date is null
+    where site= %s and Product_Group= %s and rpt_run_date = %s and rpt_run_time= %s and BL_Number not like "WZ%" and Product_Code not like "INSTER%" and Truck_Appointment_Date is null
     group by BL_Number, Site, CSR,
         Ship_to_Customer,
         Ship_to_City,
@@ -192,8 +192,8 @@ def avail_to_ship(site, group, run_date):
     order by State, Ship_to_City;
     """
     # execute the query with the selected user inputs and convert the result to a DataFrame
-    avail_to_ship_df = pd.read_sql_query(qry_available_ship_list, conn, params=[site, group, run_date])
-    print (avail_to_ship_df)
+    avail_to_ship_df = pd.read_sql_query(qry_available_ship_list, conn, params=[site, group, run_date, run_time])
+    #print (avail_to_ship_df)
     return avail_to_ship_df
 
 

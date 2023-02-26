@@ -61,13 +61,13 @@ with st.container():
             selected_group = st.selectbox("Choose a Group", items)
         with col2:
             # Use calendar to repesent  rpt_run_date from ipg_ez
-            selected_date = st.date_input("Choose a date")
+            selected_date = st.date_input("Choose a date" )
             # Extract distinct rpt_run_time from ipg_ez, convert result to list and display items in select box
-            rpt_time_result = conn.execute("select distinct rpt_run_time from ipg_ez;").fetchall()
-            items = [str(item[0]) for item in rpt_time_result] 
-            selected_time = st.selectbox("Choose a time", items)
+            # rpt_time_result = conn.execute("select distinct rpt_run_time from ipg_ez;").fetchall()
+            # items = [str(item[0]) for item in rpt_time_result] 
+            selected_time = st.selectbox("Choose a time", options=["09:00:00", "16:00:00"])
             
-        avail_to_ship_df= avail_to_ship(selected_site, selected_group, selected_date)
+        avail_to_ship_df= avail_to_ship(selected_site, selected_group, selected_date, selected_time)
         st.dataframe(avail_to_ship_df)
 
         
@@ -98,6 +98,7 @@ try:
 
             st.plotly_chart(fig)
 except Exception as e:
+    print(e)
     st.warning(f"No data available")
 
 
