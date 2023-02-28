@@ -10,7 +10,7 @@ import streamlit as st
 
 
 
-DB= 'db3_db'
+DB= 'ws_hub_db'
 
 def connect_to_database(section="DEFAULT", dbms="mysql"):
     """
@@ -181,7 +181,7 @@ def avail_to_ship(site, group, run_date, run_time):
     SELECT Site, BL_Number, CSR, Truck_Appointment_Date, Ship_to_Customer, Ship_to_City, State, SUM(Pick_Weight) AS WGT, SUM(Number_of_Pallet) AS PLT, u.lat, u.lon
     FROM ipg_ez i
     left join us_cities u on i.State=u.state_id and i.Ship_to_City=u.city_ascii
-    where site= %s and Product_Group= %s and rpt_run_date = %s and rpt_run_time= %s and BL_Number not like "WZ%" and Product_Code not like "INSTER%" and Truck_Appointment_Date is null
+    where Site= %s and Product_Group= %s and BL_Number not like "WZ%" and rpt_run_date = %s and rpt_run_time= %s and  Product_Code not like '%INSER%' and Truck_Appointment_Date is null
     group by BL_Number, Site, CSR,
         Ship_to_Customer,
         Ship_to_City,
@@ -197,8 +197,17 @@ def avail_to_ship(site, group, run_date, run_time):
     return avail_to_ship_df
 
 
-@st.cache_data
+
 def convert_df_to_csv(df):
     # IMPORTANT: Cache the conversion to prevent computation on every rerun
     return df.to_csv().encode('utf-8')
 
+def ship_tomorrow(rpt_date, truck_dt):
+    conn = connect_to_database(DB, dbms='mysql')
+    qry = """ SELECT Product_Group, Site,  sum(Pick_Weight), sum(Number_of_Pallet) FROM ipg_ez
+            where rpt_run_date= %s and rpt_run_time='16:00:00' and Truck_Appointment_Date= %s and Product_Code not like "INSER%"
+            group by Product_Group, Site
+            order by product_Group, Site;"""
+    ship_tomorrow = pd.read_sql(qry, conn, params=[rpt_date, truck_dt])
+
+    return ship_tomorrow

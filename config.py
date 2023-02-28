@@ -1,10 +1,10 @@
 
-[mysql_db]
+[ws_hub_db]
 user = root
 password = n1cenclean
 host = localhost
 port = 3306
-database = classicmodels
+database = ws_hub
 
 [cfp_db]
 user = whuser
