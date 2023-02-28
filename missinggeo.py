@@ -2,8 +2,8 @@ import pandas as pd
 from geopy.geocoders import Nominatim
 
 # create a pandas dataframe with city and state columns
-df = pd.DataFrame({'city': ['New York', 'Los Angeles', 'Chicago', 'Houston', 'BETHEL'],
-                   'state': ['NY', 'CA', 'IL', 'TX', 'PA']})
+df = pd.DataFrame({'city': ['New York', 'Los Angeles', 'Chicago', 'Houston', 'BETHEL', 'SCHODACK LANDING'],
+                   'state': ['NY', 'CA', 'IL', 'TX', 'PA', 'NY']})
 
 # create a geolocator object using Nominatim
 geolocator = Nominatim(user_agent='my_app')

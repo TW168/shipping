@@ -3,8 +3,12 @@ from datetime import datetime
 import pandas as pd
 import plotly.express as px
 from helper import extract_EZ_rpt_date_time, connect_to_database, clean_uploaded_IPG_EZ, avail_to_ship, convert_df_to_csv
+import numpy as np
 
-DB = 'db3_db'
+
+
+# Change database location
+DB = 'ws_hub_db'
 
 st.set_page_config(page_title="TSR Prep", page_icon="🚚", layout='wide')
 
@@ -28,8 +32,9 @@ with st.container():
             file_size = uploaded_file.size
             conn = connect_to_database(DB)
             result = conn.execute("SELECT * FROM ipg_ez WHERE file_name = %s AND file_size = %s", (file_name, file_size)).fetchone()
-
+            st.write(file_name)
             if result:
+                
                 st.error("This file has already been uploaded.")
             else:
                 # extract file data and process the file
@@ -66,9 +71,16 @@ with st.container():
             # rpt_time_result = conn.execute("select distinct rpt_run_time from ipg_ez;").fetchall()
             # items = [str(item[0]) for item in rpt_time_result] 
             selected_time = st.selectbox("Choose a time", options=["09:00:00", "16:00:00"])
-            
+          
         avail_to_ship_df= avail_to_ship(selected_site, selected_group, selected_date, selected_time)
         st.dataframe(avail_to_ship_df)
+        today_truck_appointment_wgt = avail_to_ship_df.groupby('Truck_Appointment_Date')['WGT'].fillna(0).sum()
+        today_truck_all_appointment_wgt = avail_to_ship_df['WGT'].sum()
+        st.write ("Today's Truck with appointment (lbs). ",format(today_truck_appointment_wgt, ',.0f'))
+        st.write ("Today's Truck (lbs). ",format(today_truck_all_appointment_wgt, ',.0f'))
+        print(today_truck_all_appointment_wgt)
+        summary_df =avail_to_ship_df["WGT"].sum() 
+        st.write()
 
         
         st.download_button(
@@ -91,8 +103,8 @@ try:
                                             + avail_to_ship_df["Ship_to_Customer"].astype(str)
             )
             px.set_mapbox_access_token(open(".mapbox_token").read())
-            fig = px.scatter_mapbox(avail_to_ship_df, lat=avail_to_ship_df["lat"], lon=avail_to_ship_df["lon"], hover_name="hover_text", size="WGT", size_max=15, zoom=4, center={"lat": 37.09054375, "lon": -96.6249135},
-                    width=1200, height=750, title="BL Number Location")
+            fig = px.scatter_mapbox(avail_to_ship_df, lat=avail_to_ship_df["lat"], lon=avail_to_ship_df["lon"], hover_name="hover_text", size="WGT", size_max=15, zoom=3, center={"lat": 37.09054375, "lon": -96.6249135},
+                    width=950, height=700, title="BL Number Location")
             fig.update_layout(mapbox_style="open-street-map")
             fig.update_layout(margin={"r":0, "t":50, "l":0, "b":10})
 
