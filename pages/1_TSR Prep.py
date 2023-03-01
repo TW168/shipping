@@ -1,14 +1,16 @@
 import streamlit as st
 from datetime import datetime
 import pandas as pd
-import plotly.express as px
 from helper import extract_EZ_rpt_date_time, connect_to_database, clean_uploaded_IPG_EZ, avail_to_ship, convert_df_to_csv
 import numpy as np
+import folium
+from folium.plugins import MarkerCluster
+from streamlit_folium import st_folium
 
 
 
 # Change database location
-DB = 'ws_hub_db'
+DB = 'db3_db'
 
 st.set_page_config(page_title="TSR Prep", page_icon="🚚", layout='wide')
 
@@ -74,13 +76,13 @@ with st.container():
           
         avail_to_ship_df= avail_to_ship(selected_site, selected_group, selected_date, selected_time)
         st.dataframe(avail_to_ship_df)
-        today_truck_appointment_wgt = avail_to_ship_df.groupby('Truck_Appointment_Date')['WGT'].fillna(0).sum()
-        today_truck_all_appointment_wgt = avail_to_ship_df['WGT'].sum()
-        st.write ("Today's Truck with appointment (lbs). ",format(today_truck_appointment_wgt, ',.0f'))
-        st.write ("Today's Truck (lbs). ",format(today_truck_all_appointment_wgt, ',.0f'))
-        print(today_truck_all_appointment_wgt)
-        summary_df =avail_to_ship_df["WGT"].sum() 
-        st.write()
+        # today_truck_appointment_wgt = avail_to_ship_df.groupby('Truck_Appointment_Date')['WGT'].fillna(0).sum()
+        # today_truck_all_appointment_wgt = avail_to_ship_df['WGT'].sum()
+        # st.write ("Today's Truck with appointment (lbs). ",format(today_truck_appointment_wgt, ',.0f'))
+        # st.write ("Today's Truck (lbs). ",format(today_truck_all_appointment_wgt, ',.0f'))
+        # print(today_truck_all_appointment_wgt)
+        # summary_df =avail_to_ship_df["WGT"].sum() 
+        # st.write()
 
         
         st.download_button(
@@ -94,21 +96,27 @@ with st.container():
 try:
     with st.container():
         with st.expander('Map', expanded=True):
-            avail_to_ship_df["hover_text"] = (
-                                            ""
-                                            + avail_to_ship_df["BL_Number"].astype(str)
-                                            + "<br>PLT: "
-                                            + avail_to_ship_df["PLT"].astype(str)
-                                            + "<br>"
-                                            + avail_to_ship_df["Ship_to_Customer"].astype(str)
-            )
-            px.set_mapbox_access_token(open(".mapbox_token").read())
-            fig = px.scatter_mapbox(avail_to_ship_df, lat=avail_to_ship_df["lat"], lon=avail_to_ship_df["lon"], hover_name="hover_text", size="WGT", size_max=15, zoom=3, center={"lat": 37.09054375, "lon": -96.6249135},
-                    width=950, height=700, title="BL Number Location")
-            fig.update_layout(mapbox_style="open-street-map")
-            fig.update_layout(margin={"r":0, "t":50, "l":0, "b":10})
+            def add_tooltip(row, marker):
+                tooltip = "{}<br>{}<br>Weight: {}<br>Pallets: {}".format(
+                    row["BL_Number"], row["Ship_to_Customer"], row["WGT"], row["PLT"])
+                folium.Marker(location=[row["lat"], row["lon"]], tooltip=tooltip).add_to(marker)
+            
+            df = avail_to_ship_df.dropna(subset=['lat', 'lon'])
+            
+            # Create the map
+            m = folium.Map(location=[df["lat"].mean(), df["lon"].mean()], zoom_start=4)
 
-            st.plotly_chart(fig)
+            # Add marker cluster to the map
+            marker_cluster = MarkerCluster().add_to(m)
+
+            # Add each point to the marker cluster with tooltip
+            for index, row in df.iterrows():
+                if not pd.isna(row["lat"]) and not pd.isna(row["lon"]):
+                    add_tooltip(row, marker_cluster)
+
+            # Display the map in Streamlit
+            st_data = st_folium(m, width=1200)
+            
 except Exception as e:
     print(e)
     st.warning(f"No data available")

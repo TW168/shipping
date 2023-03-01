@@ -10,7 +10,7 @@ import streamlit as st
 
 
 
-DB= 'ws_hub_db'
+DB= 'db3_db'
 
 def connect_to_database(section="DEFAULT", dbms="mysql"):
     """

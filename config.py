@@ -21,15 +21,15 @@ port = 3306
 database = cfpwh
 
 [sakila_db]
-user = root
-password = happy
+user = root2
+password = h8ppyday^^
 host = localhost
 port = 3306
 database = sakila
 
 [db3_db]
-user = root
-password = happy
+user = root2
+password = h8ppyday^^
 host = localhost
 port = 3306
 database = db3

@@ -5,7 +5,7 @@ from datetime import datetime
 import datetime
 import plotly.express as px
 
-DB = 'ws_hub_db'
+
 
 st.set_page_config(page_title="Summary", page_icon="📰", layout='wide')
 st.markdown("# Summary")
