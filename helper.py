@@ -9,8 +9,23 @@ import streamlit as st
 
 
 
-
 DB= 'ws_hub_db'
+
+
+def site_lst():
+    conn= connect_to_database(DB, dbms='mysql')
+    site_result = conn.execute("SELECT distinct Site FROM ipg_ez;").fetchall()
+    site_list = [str(item[0]) for item in site_result]
+    return site_list
+
+
+def group_lst():
+    conn = connect_to_database(DB, dbms='mysql')
+    # Extract distinct group from ipg_ez, convert result to list and display items in select box
+    group_result = conn.execute("select distinct Product_Group from ipg_ez;").fetchall()
+    group_list = [str(item[0]) for item in group_result]
+    return group_list
+
 
 def connect_to_database(section="DEFAULT", dbms="mysql"):
     """
@@ -85,13 +100,17 @@ def extract_EZ_rpt_date_time(file_name):
 
         If the file name does not match the expected pattern, returns None.
     """
-    pattern = r"AmTopp Current Pickup Detail Report as of (\d{4}-\d{1,2}-\d{1,2}) H(\d{1,2})M(\d{1,2})\.xlsx"
-    match = re.search(pattern, file_name)
-    if match:
-        date = match.group(1)
-        time = f"{match.group(2)}:{match.group(3)}"
-        return (date, time)
-    else:
+    try:
+        pattern = r"AmTopp Current Pickup Detail Report as of (\d{4}-\d{1,2}-\d{1,2}) H(\d{1,2})M(\d{1,2})\.xlsx"
+        match = re.search(pattern, file_name)
+        if match:
+            date = match.group(1)
+            time = f"{match.group(2)}:{match.group(3)}"
+            return (date, time)
+        else:
+            return None
+    except Exception as e:
+        print("def extract_EZ_rpt_date_time an error occurred:", e)
         return None
 
 
@@ -178,7 +197,7 @@ def clean_uploaded_IPG_EZ(
 def avail_to_ship(site, group, run_date, run_time):
     conn = connect_to_database(DB)
     qry_available_ship_list = """ 
-    SELECT Site, BL_Number, CSR, Truck_Appointment_Date, Ship_to_Customer, Ship_to_City, State, SUM(Pick_Weight) AS WGT, SUM(Number_of_Pallet) AS PLT, u.lat, u.lon
+    SELECT Site, BL_Number, CSR, Truck_Appointment_Date as "Truck Appt Date", Ship_to_Customer as "Customer", Ship_to_City as "City", State, SUM(Pick_Weight) AS WGT, SUM(Number_of_Pallet) AS PLT, u.lat, u.lon
     FROM ipg_ez i
     left join us_cities u on i.State=u.state_id and i.Ship_to_City=u.city_ascii
     where Site= %s and Product_Group= %s and BL_Number not like "WZ%" and rpt_run_date = %s and rpt_run_time= %s and  Product_Code not like '%INSER%' and Truck_Appointment_Date is null
@@ -197,10 +216,10 @@ def avail_to_ship(site, group, run_date, run_time):
     return avail_to_ship_df
 
 
-
 def convert_df_to_csv(df):
     # IMPORTANT: Cache the conversion to prevent computation on every rerun
     return df.to_csv().encode('utf-8')
+
 
 def ship_tomorrow(rpt_date, truck_dt):
     conn = connect_to_database(DB, dbms='mysql')
@@ -209,5 +228,27 @@ def ship_tomorrow(rpt_date, truck_dt):
             group by Product_Group, Site
             order by product_Group, Site;"""
     ship_tomorrow = pd.read_sql(qry, conn, params=[rpt_date, truck_dt])
-
     return ship_tomorrow
+
+
+def ship_tomorrow_consignment(site, group, rpt_date, truck_date):
+    conn = connect_to_database(DB, dbms='mysql')
+    qry = """ SELECT Site, Product_Group, Ship_to_Customer, SUM(Pick_Weight) AS WGT, SUM(Number_of_Pallet) AS PLT 
+                FROM ws_hub.ipg_ez
+                WHERE Site= %s AND Product_Group= %s AND rpt_run_date = %s AND rpt_run_time='16:00:00' AND Truck_Appointment_Date= %s
+                AND (Ship_to_Customer='INTEPLAST GROUP CORP. (AMTOPP)' OR Ship_to_Customer='AMTOPP WAREHOUSE - HOUSTON')
+                GROUP BY Site, Product_Group, Ship_to_Customer; """
+    ship_tomorrow_consignment = pd.read_sql(qry, conn, params=[site, group, rpt_date, truck_date])
+    conn.close()
+    return ship_tomorrow_consignment
+
+
+def avail_to_ship_AM(site, group, rpt_date):
+    conn = connect_to_database(DB, dbms='mysql')
+    """ This will sum the weight and pallet for each BL number """
+    qry ="""SELECT Site, Product_Group, sum(Pick_Weight) as WGT, sum(Number_of_Pallet) as PLT FROM ws_hub.ipg_ez
+            where (Site= %s and Product_Group= %s and rpt_run_date = %s and rpt_run_time='09:00:00' and Truck_Appointment_Date is null and BL_Number not like "WZ%" and Product_Code not like "INSER%" ) 
+            group by  Site, Product_Group; """
+    avail_to_ship_AM = pd.read_sql_query(qry, conn, params=[site, group, rpt_date])
+    conn.close()
+    return avail_to_ship_AM
