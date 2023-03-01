@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import datetime
 import pandas as pd
-from helper import extract_EZ_rpt_date_time, connect_to_database, clean_uploaded_IPG_EZ, avail_to_ship, convert_df_to_csv
+from helper import extract_EZ_rpt_date_time, connect_to_database, clean_uploaded_IPG_EZ, avail_to_ship, convert_df_to_csv, avail_to_ship_AM
 import numpy as np
 import folium
 from folium.plugins import MarkerCluster
@@ -70,27 +70,24 @@ with st.container():
             # Use calendar to repesent  rpt_run_date from ipg_ez
             selected_date = st.date_input("Choose a date" )
             # Extract distinct rpt_run_time from ipg_ez, convert result to list and display items in select box
-            # rpt_time_result = conn.execute("select distinct rpt_run_time from ipg_ez;").fetchall()
-            # items = [str(item[0]) for item in rpt_time_result] 
             selected_time = st.selectbox("Choose a time", options=["09:00:00", "16:00:00"])
           
         avail_to_ship_df= avail_to_ship(selected_site, selected_group, selected_date, selected_time)
         st.dataframe(avail_to_ship_df)
-        # today_truck_appointment_wgt = avail_to_ship_df.groupby('Truck_Appointment_Date')['WGT'].fillna(0).sum()
-        # today_truck_all_appointment_wgt = avail_to_ship_df['WGT'].sum()
-        # st.write ("Today's Truck with appointment (lbs). ",format(today_truck_appointment_wgt, ',.0f'))
-        # st.write ("Today's Truck (lbs). ",format(today_truck_all_appointment_wgt, ',.0f'))
-        # print(today_truck_all_appointment_wgt)
-        # summary_df =avail_to_ship_df["WGT"].sum() 
-        # st.write()
-
-        
-        st.download_button(
-        label="Download",
-        data=convert_df_to_csv(avail_to_ship_df),
-        file_name='TSR_Prep_List.csv',
-        mime='text/csv',
-        )
+        col1, col2 = st.columns(2)
+        with col1:
+            st.download_button(
+            label="Download",
+            data=convert_df_to_csv(avail_to_ship_df),
+            file_name='TSR_Prep_List.csv',
+            mime='text/csv',
+            )
+            with col2:
+                avail_to_ship_AM_df = avail_to_ship_AM(selected_site, selected_group, selected_date)
+                st.write("Available to ship")
+                avail_to_ship_AM_df['WGT'] = avail_to_ship_AM_df['WGT'].astype(int).map('{:,.0f}'.format)
+                st.dataframe(avail_to_ship_AM_df)
+              
 
 
 try:
@@ -98,7 +95,7 @@ try:
         with st.expander('Map', expanded=True):
             def add_tooltip(row, marker):
                 tooltip = "{}<br>{}<br>Weight: {}<br>Pallets: {}".format(
-                    row["BL_Number"], row["Ship_to_Customer"], row["WGT"], row["PLT"])
+                    row["BL_Number"], row["Customer"], row["WGT"], row["PLT"])
                 folium.Marker(location=[row["lat"], row["lon"]], tooltip=tooltip).add_to(marker)
             
             df = avail_to_ship_df.dropna(subset=['lat', 'lon'])
