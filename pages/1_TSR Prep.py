@@ -10,7 +10,7 @@ from streamlit_folium import st_folium
 
 
 # Change database location
-DB = 'db3_db'
+DB = 'ws_hub_db'
 
 st.set_page_config(page_title="TSR Prep", page_icon="🚚", layout='wide')
 
