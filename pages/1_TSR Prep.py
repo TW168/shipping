@@ -71,7 +71,13 @@ with st.container():
             selected_date = st.date_input("Choose a date" )
             # Extract distinct rpt_run_time from ipg_ez, convert result to list and display items in select box
             selected_time = st.selectbox("Choose a time", options=["09:00:00", "16:00:00"])
-          
+        # Display sum of wgt, plt dataframe 
+        avail_to_ship_AM_df = avail_to_ship_AM(selected_site, selected_group, selected_date)
+        avail_to_ship_AM_df['WGT'] = avail_to_ship_AM_df['WGT'].astype(int).map('{:,.0f}'.format)
+        avail_to_ship_AM_df["PLT"] = avail_to_ship_AM_df["PLT"].astype(int).map('{:,.0f}'.format)
+        avail_wgt = avail_to_ship_AM_df.iloc[0]["WGT"]
+        avail_plt = avail_to_ship_AM_df.iloc[0]["PLT"]
+        st.success(f"Available to ship {avail_wgt} lbs and {avail_plt} pallets ")  
         avail_to_ship_df= avail_to_ship(selected_site, selected_group, selected_date, selected_time)
         st.dataframe(avail_to_ship_df)
         col1, col2 = st.columns(2)
@@ -83,13 +89,9 @@ with st.container():
             mime='text/csv',
             )
             with col2:
-                avail_to_ship_AM_df = avail_to_ship_AM(selected_site, selected_group, selected_date)
-                st.write("Available to ship")
-                avail_to_ship_AM_df['WGT'] = avail_to_ship_AM_df['WGT'].astype(int).map('{:,.0f}'.format)
-                st.dataframe(avail_to_ship_AM_df)
+                pass
+                
               
-
-
 try:
     with st.container():
         with st.expander('Map', expanded=True):
@@ -120,6 +122,6 @@ except Exception as e:
 
 
 
-st.write('outside of container')
+
 
 
