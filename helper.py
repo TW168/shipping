@@ -223,28 +223,28 @@ def convert_df_to_csv(df):
 
 def ship_tomorrow(rpt_date, truck_dt):
     conn = connect_to_database(DB, dbms='mysql')
-    qry = """ SELECT Product_Group as 'Group', Site,  sum(Pick_Weight) as 'LBS', sum(Number_of_Pallet) as 'PLT' FROM ipg_ez
+    qry = """ SELECT Truck_Appointment_Date, Product_Group as 'Group', Site,  sum(Pick_Weight) as 'LBS', sum(Number_of_Pallet) as 'PLT' FROM ipg_ez
             where rpt_run_date= %s and rpt_run_time='16:00:00' and Truck_Appointment_Date= %s and Product_Code not like "INSER%"
-            group by Product_Group, Site
-            order by product_Group, Site;"""
+            group by Truck_Appointment_Date, Product_Group, Site
+            order by Truck_Appointment_Date, product_Group, Site;"""
     ship_tomorrow = pd.read_sql(qry, conn, params=[rpt_date, truck_dt])
     return ship_tomorrow
 
 def ship_tomorrow_houston(rpt_date, truck_dt):
     conn = connect_to_database(DB)
-    qry = """SELECT Product_Group as 'Group', Site,  sum(Pick_Weight) as 'Consignment to Houston' FROM ipg_ez
+    qry = """SELECT Truck_Appointment_Date, Product_Group as 'Group', Site,  sum(Pick_Weight) as 'Consignment to Houston' FROM ipg_ez
             where rpt_run_date= %s and rpt_run_time='16:00:00' and Truck_Appointment_Date= %s and Product_Code not like "INSER%" and Ship_to_Customer= "AMTOPP WAREHOUSE - HOUSTON"
-            group by Product_Group, Site
-            order by product_Group, Site; """
+            group by Truck_Appointment_Date, Product_Group, Site
+            order by Truck_Appointment_Date, product_Group, Site; """
     ship_tomorrow_houston = pd.read_sql(qry, conn, params=[rpt_date, truck_dt])
     return ship_tomorrow_houston
 
 def ship_tomorrow_remington(rpt_date, truck_dt):
     conn = connect_to_database(DB)
-    qry = """ SELECT Product_Group as 'Group', Site,  sum(Pick_Weight) as 'Consignment to Remington' FROM ipg_ez
+    qry = """ SELECT Truck_Appointment_Date, Product_Group as 'Group', Site,  sum(Pick_Weight) as 'Consignment to Remington' FROM ipg_ez
             where rpt_run_date= %s and rpt_run_time='16:00:00' and Truck_Appointment_Date= %s and Product_Code not like "INSER%" and Ship_to_Customer="INTEPLAST GROUP CORP. (AMTOPP)"
-            group by Product_Group, Site
-            order by product_Group, Site; """ 
+            group by Truck_Appointment_Date, Product_Group, Site
+            order by Truck_Appointment_Date, product_Group, Site; """ 
     ship_tomorrow_remington = pd.read_sql(qry, conn, params=[rpt_date, truck_dt])
     return ship_tomorrow_remington
 

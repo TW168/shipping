@@ -24,7 +24,7 @@ with st.container():
     with st.expander("Upload", expanded=True):
         col1, col2 = st.columns(2)
         with col1:
-            uploaded_file = st.file_uploader('Choose a file (e.g. AmTopp Current Pickup Detail Report as of yyyy-m-dd H#9M#0.xlsx)', accept_multiple_files=False, type=["xlsx", "xls"], key="uploaded_file_key", help="This app only accept Excel file from IPG EZ Report / Inteplast Management Improvement <ezreport@inteplast.com>" )
+            uploaded_file = st.file_uploader('Choose a file (e.g. AmTopp Current Pickup Detail Report as of yyyy-m-dd H#M#.xlsx)', accept_multiple_files=False, type=["xlsx", "xls"], key="uploaded_file_key", help="This app only accept Excel file from IPG EZ Report / Inteplast Management Improvement <ezreport@inteplast.com>" )
         with col2:
             pass
 
@@ -68,7 +68,7 @@ with st.container():
             selected_group = st.selectbox("Choose a Group", items)
         with col2:
             # Use calendar to repesent  rpt_run_date from ipg_ez
-            selected_date = st.date_input("Choose a date" )
+            selected_date = st.date_input("Choose Truck Appointment Date" )
             # Extract distinct rpt_run_time from ipg_ez, convert result to list and display items in select box
             selected_time = st.selectbox("Choose a time", options=["09:00:00", "16:00:00"])
         # Display sum of wgt, plt dataframe 

@@ -23,8 +23,7 @@ try:
                 # site = st.selectbox('Choose a Site: ', options=site_lst)
                 # group = st.selectbox('Choose a Group', group_lst)
             # Ship tomorrow truck log
-            st.write(f"ship on {truck_appt_date}")
-
+           
             ship_tomorrow_df = ship_tomorrow(rpt_date, truck_appt_date)
             ship_tomorrow_df['LBS'] = ship_tomorrow_df['LBS'].astype(int).map('{:,.0f}'.format)
             st.dataframe(ship_tomorrow_df)
