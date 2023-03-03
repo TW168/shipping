@@ -200,7 +200,7 @@ def avail_to_ship(site, group, run_date, run_time):
     SELECT Site, BL_Number, CSR, Truck_Appointment_Date as "Truck Appt Date", Ship_to_Customer as "Customer", Ship_to_City as "City", State, SUM(Pick_Weight) AS WGT, SUM(Number_of_Pallet) AS PLT, u.lat, u.lon
     FROM ipg_ez i
     left join us_cities u on i.State=u.state_id and i.Ship_to_City=u.city_ascii
-    where Site= %s and Product_Group= %s and BL_Number not like "WZ%" and rpt_run_date = %s and rpt_run_time= %s and  Product_Code not like '%INSER%' and Truck_Appointment_Date is null
+    where Site= %s and Product_Group= %s and BL_Number not like "WZ%" and rpt_run_date = %s and rpt_run_time= %s and  Product_Code not like '%INSER%' and Truck_Appointment_Date is null 
     group by BL_Number, Site, CSR,
         Ship_to_Customer,
         Ship_to_City,
