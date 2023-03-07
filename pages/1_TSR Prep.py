@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import datetime
 import pandas as pd
-from helper import extract_EZ_rpt_date_time, connect_to_database, clean_uploaded_IPG_EZ, avail_to_ship, convert_df_to_csv, avail_to_ship_AM
+from helper import extract_EZ_rpt_date_time, connect_to_database, clean_uploaded_IPG_EZ, avail_to_ship, convert_df_to_csv
 import numpy as np
 import folium
 from folium.plugins import MarkerCluster
@@ -10,7 +10,7 @@ from streamlit_folium import st_folium
 
 
 # Change database location
-DB = 'ws_hub_db'
+DB = 'db3_db'
 
 st.set_page_config(page_title="TSR Prep", page_icon="🚚", layout='wide')
 
@@ -51,57 +51,62 @@ with st.container():
                 cleaned_df['file_size'] = file_size
                 cleaned_df.to_sql('ipg_ez', con=conn, if_exists='append', index=False)
                 conn.close()
-    
-with st.container():
-    conn = connect_to_database(DB)
-    with st.expander("Ship list", expanded=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            # Extract distinct site from ipg_ez convert result to list and display items in select box
-            site_result = conn.execute("SELECT distinct Site FROM ipg_ez;").fetchall()
-            items = [str(item[0]) for item in site_result]
-            selected_site = st.selectbox("Choose a Site", items)
-        
-            # Extract distinct group from ipg_ez, convert result to list and display items in select box
-            group_result = conn.execute("select distinct Product_Group from ipg_ez;").fetchall()
-            items = [str(item[0]) for item in group_result]
-            selected_group = st.selectbox("Choose a Group", items)
-        with col2:
-            # Use calendar to repesent  rpt_run_date from ipg_ez
-            selected_date = st.date_input("Choose Truck Appointment Date" )
-            # Extract distinct rpt_run_time from ipg_ez, convert result to list and display items in select box
-            selected_time = st.selectbox("Choose a time", options=["09:00:00", "16:00:00"])
-        # Display sum of wgt, plt dataframe 
-        avail_to_ship_AM_df = avail_to_ship_AM(selected_site, selected_group, selected_date)
-        avail_to_ship_AM_df['WGT'] = avail_to_ship_AM_df['WGT'].astype(int).map('{:,.0f}'.format)
-        avail_to_ship_AM_df["PLT"] = avail_to_ship_AM_df["PLT"].astype(int).map('{:,.0f}'.format)
-        avail_wgt = avail_to_ship_AM_df.iloc[0]["WGT"]
-        avail_plt = avail_to_ship_AM_df.iloc[0]["PLT"]
-        st.success(f"Available to ship {avail_wgt} lbs and {avail_plt} pallets ")  
-        avail_to_ship_df= avail_to_ship(selected_site, selected_group, selected_date, selected_time)
-        st.dataframe(avail_to_ship_df)
-        col1, col2 = st.columns(2)
-        with col1:
-            st.download_button(
-            label="Download",
-            data=convert_df_to_csv(avail_to_ship_df),
-            file_name='TSR_Prep_List.csv',
-            mime='text/csv',
-            )
+
+try:    
+    with st.container():
+        conn = connect_to_database(DB)
+        with st.expander("Ship list", expanded=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                # Extract distinct site from ipg_ez convert result to list and display items in select box
+                site_result = conn.execute("SELECT distinct Site FROM ipg_ez;").fetchall()
+                items = [str(item[0]) for item in site_result]
+                selected_site = st.selectbox("Choose a Site", items)
+            
+                # Extract distinct group from ipg_ez, convert result to list and display items in select box
+                group_result = conn.execute("select distinct Product_Group from ipg_ez;").fetchall()
+                items = [str(item[0]) for item in group_result]
+                selected_group = st.selectbox("Choose a Group", items)
             with col2:
-                pass
+                # Use calendar to repesent  rpt_run_date from ipg_ez
+                selected_date = st.date_input("Choose Truck Appointment Date" )
+                # Extract distinct rpt_run_time from ipg_ez, convert result to list and display items in select box
+                selected_time = st.selectbox("Choose a time", options=["09:00:00", "16:00:00"])
+                # Display sum of wgt, plt dataframe 
+                # avail_to_ship_AM_df = avail_to_ship_AM(selected_site, selected_group, selected_date)
+                # avail_to_ship_AM_df['WGT'] = avail_to_ship_AM_df['WGT'].astype(int).map('{:,.0f}'.format)
+                # avail_to_ship_AM_df["PLT"] = avail_to_ship_AM_df["PLT"].astype(int).map('{:,.0f}'.format)
+                # avail_wgt = avail_to_ship_AM_df.iloc[0]["WGT"]
+                # avail_plt = avail_to_ship_AM_df.iloc[0]["PLT"]
+                # st.success(f"Available to ship {avail_wgt} lbs and {avail_plt} pallets ")  
+
+            avail_to_ship_df= avail_to_ship(selected_site, selected_group, selected_date, selected_time)
+            st.markdown("# Pick List for Today")
+            st.dataframe(avail_to_ship_df)
+            col1, col2 = st.columns(2)
+            with col1:
+                st.download_button(
+                label="Download",
+                data=convert_df_to_csv(avail_to_ship_df),
+                file_name='TSR_Prep_List.csv',
+                mime='text/csv',
+                )
+                with col2:
+                    pass
+
                 
-              
-try:
+    # Ship list in map                
     with st.container():
         with st.expander('Map', expanded=True):
+            
             def add_tooltip(row, marker):
+                """ defined tooltip shows BL Number, Custonmer, WGT and PLT"""
                 tooltip = "{}<br>{}<br>Weight: {}<br>Pallets: {}".format(
                     row["BL_Number"], row["Customer"], row["WGT"], row["PLT"])
                 folium.Marker(location=[row["lat"], row["lon"]], tooltip=tooltip).add_to(marker)
             
             df = avail_to_ship_df.dropna(subset=['lat', 'lon'])
-            
+                
             # Create the map
             m = folium.Map(location=[df["lat"].mean(), df["lon"].mean()], zoom_start=4)
 
@@ -115,10 +120,10 @@ try:
 
             # Display the map in Streamlit
             st_data = st_folium(m, width=1200)
-            
+                
 except Exception as e:
-    print(e)
-    st.warning(f"No data available")
+    print (e)
+
 
 
 
