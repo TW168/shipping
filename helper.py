@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 import configparser
 from datetime import time
 from datetime import datetime
+import datetime
 import re
 import pandas as pd
 import streamlit as st
@@ -200,7 +201,7 @@ def avail_to_ship(site, group, run_date, run_time):
     SELECT Site, BL_Number, CSR, Truck_Appointment_Date as "Truck Appt Date", Ship_to_Customer as "Customer", Ship_to_City as "City", State, SUM(Pick_Weight) AS WGT, SUM(Number_of_Pallet) AS PLT, u.lat, u.lon
     FROM ipg_ez i
     left join us_cities u on i.State=u.state_id and i.Ship_to_City=u.city_ascii
-    where Site= %s and Product_Group= %s and BL_Number not like "WZ%" and rpt_run_date = %s and rpt_run_time= %s and  Product_Code not like '%INSER%' and Truck_Appointment_Date is null 
+    where Site= %s and Product_Group= %s and BL_Number not like "WZ%" and rpt_run_date = %s and rpt_run_time= %s and  Product_Code not like '%INSER%' and Truck_Appointment_Date is null
     group by BL_Number, Site, CSR,
         Ship_to_Customer,
         Ship_to_City,
@@ -223,30 +224,69 @@ def convert_df_to_csv(df):
 
 def ship_tomorrow(rpt_date, truck_dt):
     conn = connect_to_database(DB, dbms='mysql')
-    qry = """ SELECT Truck_Appointment_Date, Product_Group as 'Group', Site,  sum(Pick_Weight) as 'LBS', sum(Number_of_Pallet) as 'PLT' FROM ipg_ez
-            where rpt_run_date= %s and rpt_run_time='16:00:00' and Truck_Appointment_Date= %s and Product_Code not like "INSER%"
-            group by Truck_Appointment_Date, Product_Group, Site
-            order by Truck_Appointment_Date, product_Group, Site;"""
-    ship_tomorrow = pd.read_sql(qry, conn, params=[rpt_date, truck_dt])
-    return ship_tomorrow
+    #truck_date = truck_dt
+    day_of_week = rpt_date.weekday()
+    if day_of_week == 4:
+        # If rpt_run_date is Friday, show LBS for Saturday, Sunday, and Monday
+        days = [truck_dt + datetime.timedelta(days=i) for i in range(0, 3)]
+        
+    else:
+        # Otherwise, show LBS for the next day
+        days = [rpt_date + datetime.timedelta(days=1)]
+    results = []
+    for day in days:
+        qry = """ SELECT Truck_Appointment_Date as "Date", Product_Group as 'Group', Site,  sum(Pick_Weight) as 'LBS', sum(Number_of_Pallet) as 'PLT' FROM ipg_ez
+                where rpt_run_date= %s and rpt_run_time='16:00:00' and Truck_Appointment_Date= %s and Product_Code not like "INSER%"
+                group by Truck_Appointment_Date, Product_Group, Site
+                order by Truck_Appointment_Date, product_Group, Site;"""
+        result = pd.read_sql(qry, conn, params=[rpt_date, day])
+        results.append(result)
+    return pd.concat(results)
 
-def ship_tomorrow_houston(rpt_date, truck_dt):
-    conn = connect_to_database(DB)
-    qry = """SELECT Truck_Appointment_Date, Product_Group as 'Group', Site,  sum(Pick_Weight) as 'Consignment to Houston' FROM ipg_ez
-            where rpt_run_date= %s and rpt_run_time='16:00:00' and Truck_Appointment_Date= %s and Product_Code not like "INSER%" and Ship_to_Customer= "AMTOPP WAREHOUSE - HOUSTON"
-            group by Truck_Appointment_Date, Product_Group, Site
-            order by Truck_Appointment_Date, product_Group, Site; """
-    ship_tomorrow_houston = pd.read_sql(qry, conn, params=[rpt_date, truck_dt])
-    return ship_tomorrow_houston
 
-def ship_tomorrow_remington(rpt_date, truck_dt):
+def ship_tomorrow_to_houston(rpt_date, truck_dt):
+    conn = connect_to_database(DB, dbms='mysql')
+    rpt_run_date = rpt_date
+    day_of_week = rpt_run_date.weekday()
+    if day_of_week == 4:
+        # If rpt_run_date is Friday, show LBS for Saturday, Sunday, and Monday
+        days = [truck_dt + datetime.timedelta(days=i) for i in range(0, 3)]
+    else:
+        # Otherwise, show LBS for the next day
+        days = [rpt_date + datetime.timedelta(days=1)]
+    results = []
+    for day in days:
+        qry = """SELECT Truck_Appointment_Date as "Date", Product_Group as 'Group', Site,  sum(Pick_Weight) as "To Houston" FROM ipg_ez
+                where rpt_run_date= %s and rpt_run_time='16:00:00' and Truck_Appointment_Date= %s and Product_Code not like "INSER%" and Ship_to_Customer= "AMTOPP WAREHOUSE - HOUSTON"
+                group by Truck_Appointment_Date, Product_Group, Site
+                order by Truck_Appointment_Date, product_Group, Site; """
+        result = pd.read_sql(qry, conn, params=[rpt_date, day])
+        results.append(result)
+        print (results)
+    return pd.concat(results)
+
+
+
+def ship_tomorrow_to_remington(rpt_date, truck_dt):
     conn = connect_to_database(DB)
-    qry = """ SELECT Truck_Appointment_Date, Product_Group as 'Group', Site,  sum(Pick_Weight) as 'Consignment to Remington' FROM ipg_ez
+    rpt_run_date = rpt_date
+    day_of_week = rpt_run_date.weekday()
+    if day_of_week == 4:
+        # If rpt_run_date is Friday, show LBS for Saturday, Sunday, and Monday
+        days = [truck_dt + datetime.timedelta(days=i) for i in range(0, 3)]
+    else:
+        # Otherwise, show LBS for the next day
+        days = [rpt_run_date + datetime.timedelta(days=1)]
+    results = []
+    for day in days:
+        qry = """ SELECT Truck_Appointment_Date as "Date", Product_Group as 'Group', Site,  sum(Pick_Weight) as "To Remington" FROM ipg_ez
             where rpt_run_date= %s and rpt_run_time='16:00:00' and Truck_Appointment_Date= %s and Product_Code not like "INSER%" and Ship_to_Customer="INTEPLAST GROUP CORP. (AMTOPP)"
             group by Truck_Appointment_Date, Product_Group, Site
             order by Truck_Appointment_Date, product_Group, Site; """ 
-    ship_tomorrow_remington = pd.read_sql(qry, conn, params=[rpt_date, truck_dt])
-    return ship_tomorrow_remington
+        result = pd.read_sql(qry, conn, params=[rpt_date, day])
+        results.append(result)
+        print(results)
+    return pd.concat(results)
 
 
 

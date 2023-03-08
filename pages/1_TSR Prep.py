@@ -68,16 +68,17 @@ with st.container():
             selected_group = st.selectbox("Choose a Group", items)
         with col2:
             # Use calendar to repesent  rpt_run_date from ipg_ez
-            selected_date = st.date_input("Choose Truck Appointment Date" )
+            selected_date = st.date_input("Choose Report Date" )
             # Extract distinct rpt_run_time from ipg_ez, convert result to list and display items in select box
             selected_time = st.selectbox("Choose a time", options=["09:00:00", "16:00:00"])
         # Display sum of wgt, plt dataframe 
-        avail_to_ship_AM_df = avail_to_ship_AM(selected_site, selected_group, selected_date)
-        avail_to_ship_AM_df['WGT'] = avail_to_ship_AM_df['WGT'].astype(int).map('{:,.0f}'.format)
-        avail_to_ship_AM_df["PLT"] = avail_to_ship_AM_df["PLT"].astype(int).map('{:,.0f}'.format)
-        avail_wgt = avail_to_ship_AM_df.iloc[0]["WGT"]
-        avail_plt = avail_to_ship_AM_df.iloc[0]["PLT"]
-        st.success(f"Available to ship {avail_wgt} lbs and {avail_plt} pallets ")  
+        # avail_to_ship_AM_df = avail_to_ship_AM(selected_site, selected_group, selected_date)
+        # avail_to_ship_AM_df['WGT'] = avail_to_ship_AM_df['WGT'].astype(int).map('{:,.0f}'.format)
+        # avail_to_ship_AM_df["PLT"] = avail_to_ship_AM_df["PLT"].astype(int).map('{:,.0f}'.format)
+        # st.dataframe(avail_to_ship_AM_df)
+        # avail_wgt = avail_to_ship_AM_df.iloc[0]["WGT"]
+        # avail_plt = avail_to_ship_AM_df.iloc[0]["PLT"]
+        # st.success(f"Available to ship {avail_wgt} lbs and {avail_plt} pallets ")  
         avail_to_ship_df= avail_to_ship(selected_site, selected_group, selected_date, selected_time)
         st.dataframe(avail_to_ship_df)
         col1, col2 = st.columns(2)
@@ -118,7 +119,7 @@ try:
             
 except Exception as e:
     print(e)
-    st.warning(f"No data available")
+    st.warning(f"No data available or all shipment are scheduled")
 
 
 
