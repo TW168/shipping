@@ -1,8 +1,6 @@
+from datetime import time, datetime, timedelta
 from sqlalchemy import create_engine
 import configparser
-from datetime import time
-from datetime import datetime
-import datetime
 import re
 import pandas as pd
 import streamlit as st
@@ -11,6 +9,7 @@ import streamlit as st
 
 
 DB= 'ws_hub_db'
+DB_Eric = 'cfpwh_db' 
 
 
 def site_lst():
@@ -26,6 +25,7 @@ def group_lst():
     group_result = conn.execute("select distinct Product_Group from ipg_ez;").fetchall()
     group_list = [str(item[0]) for item in group_result]
     return group_list
+
 
 
 def connect_to_database(section="DEFAULT", dbms="mysql"):
@@ -61,7 +61,7 @@ def connect_to_database(section="DEFAULT", dbms="mysql"):
     # Test the connection by executing a simple query
     conn = engine.connect()
     print(f"Successfully connected to {dbms.upper()} database: {database}")
-
+    
     return conn
 
 
@@ -228,11 +228,11 @@ def ship_tomorrow(rpt_date, truck_dt):
     day_of_week = rpt_date.weekday()
     if day_of_week == 4:
         # If rpt_run_date is Friday, show LBS for Saturday, Sunday, and Monday
-        days = [truck_dt + datetime.timedelta(days=i) for i in range(0, 3)]
+        days = [truck_dt + timedelta(days=i) for i in range(0, 3)]
         
     else:
         # Otherwise, show LBS for the next day
-        days = [rpt_date + datetime.timedelta(days=1)]
+        days = [rpt_date + timedelta(days=1)]
     results = []
     for day in days:
         qry = """ SELECT Truck_Appointment_Date as "Date", Product_Group as 'Group', Site,  sum(Pick_Weight) as 'LBS', sum(Number_of_Pallet) as 'PLT' FROM ipg_ez
@@ -250,10 +250,10 @@ def ship_tomorrow_to_houston(rpt_date, truck_dt):
     day_of_week = rpt_run_date.weekday()
     if day_of_week == 4:
         # If rpt_run_date is Friday, show LBS for Saturday, Sunday, and Monday
-        days = [truck_dt + datetime.timedelta(days=i) for i in range(0, 3)]
+        days = [truck_dt + timedelta(days=i) for i in range(0, 3)]
     else:
         # Otherwise, show LBS for the next day
-        days = [rpt_date + datetime.timedelta(days=1)]
+        days = [rpt_date + timedelta(days=1)]
     results = []
     for day in days:
         qry = """SELECT Truck_Appointment_Date as "Date", Product_Group as 'Group', Site,  sum(Pick_Weight) as "To Houston" FROM ipg_ez
@@ -273,10 +273,10 @@ def ship_tomorrow_to_remington(rpt_date, truck_dt):
     day_of_week = rpt_run_date.weekday()
     if day_of_week == 4:
         # If rpt_run_date is Friday, show LBS for Saturday, Sunday, and Monday
-        days = [truck_dt + datetime.timedelta(days=i) for i in range(0, 3)]
+        days = [truck_dt + timedelta(days=i) for i in range(0, 3)]
     else:
         # Otherwise, show LBS for the next day
-        days = [rpt_run_date + datetime.timedelta(days=1)]
+        days = [rpt_run_date + timedelta(days=1)]
     results = []
     for day in days:
         qry = """ SELECT Truck_Appointment_Date as "Date", Product_Group as 'Group', Site,  sum(Pick_Weight) as "To Remington" FROM ipg_ez
@@ -289,7 +289,11 @@ def ship_tomorrow_to_remington(rpt_date, truck_dt):
     return pd.concat(results)
 
 
-
+def ez_analyst(date):
+    conn = connect_to_database(DB, dbms='mysql') 
+    qry = f"SELECT IF(DAYOFWEEK(rpt_run_date) = 5, DATE_ADD(rpt_run_date, INTERVAL 1 DAY), rpt_run_date) AS `start_date`, CAST(SUM(CASE WHEN rpt_run_time = '09:00:00' AND BL_number LIKE 'WZ%' AND Product_Code NOT LIKE 'INSER%' THEN Pick_Weight ELSE 0 END) AS UNSIGNED) AS `WZ (lbs) 9AM`, CAST(SUM(CASE WHEN rpt_run_time = '09:00:00' AND BL_number NOT LIKE 'WZ%' AND Product_Code NOT LIKE 'INSER%' AND truck_appointment_date IS NULL THEN Pick_Weight ELSE 0 END) AS UNSIGNED) AS `Available to Ship (lbs) 9AM`, CAST(SUM(CASE WHEN rpt_run_time = '16:00:00' AND truck_appointment_date = IF(DAYOFWEEK(rpt_run_date) = 6, DATE_ADD(rpt_run_date, INTERVAL 2 DAY), DATE_ADD(rpt_run_date, INTERVAL 1 DAY)) AND BL_number NOT LIKE 'WZ%' AND Product_Code NOT LIKE 'INSER%' THEN Pick_Weight ELSE 0 END) AS UNSIGNED) AS `Ship tomorrow (lbs) 4PM` FROM ipg_ez WHERE site = 'AMJK' AND product_group = 'SW' AND rpt_run_time IN ('09:00:00', '16:00:00') AND rpt_run_date = %s GROUP BY `start_date`"
+    df = pd.read_sql_query(qry, conn, params=[date])
+    return df
 
 def avail_to_ship_AM(site, group, rpt_date):
     conn = connect_to_database(DB, dbms='mysql')
@@ -300,3 +304,61 @@ def avail_to_ship_AM(site, group, rpt_date):
     avail_to_ship_AM = pd.read_sql_query(qry, conn, params=[site, group, rpt_date])
     conn.close()
     return avail_to_ship_AM
+
+def get_data_cfpwh():
+    conn = connect_to_database(DB_Eric, dbms='mysql')
+    qry = """SELECT * FROM pickup"""
+    everything = pd.read_sql_query(qry, conn )
+    conn.close()
+    return everything
+
+# Define the convert_to_date function
+def convert_to_date(num):
+    # Convert the input number to a string
+    num_str = str(num)
+
+    # Extract the century, year, month, and day from the string
+    century = int(num_str[0])
+    year = int(num_str[1:3])
+    month = int(num_str[3:5])
+    day = int(num_str[5:7])
+
+    # Calculate the actual year based on the century
+    if century == 1:
+        # actual_year = 1900 + year # this is the correct conversion
+        actual_year = 2000 + year
+    else:
+        actual_year = (century - 1) * 100 + year + 1900
+
+    # Create a date string in the format "YYYY-MM-DD"
+    date_str = f"{actual_year:04}-{month:02}-{day:02}"
+
+    return date_str
+
+def get_popular_products():
+    conn = connect_to_database(DB, dbms='mysql')
+    # Execute the SQL query and fetch the results as a DataFrame
+    query = """
+        SELECT 
+            Site,
+            Product_group,
+            YEAR(Truck_Appointment_Date) AS Year,
+            MONTH(Truck_Appointment_Date) AS Month,
+            left(Product_Code,3) as Product_Code,
+            SUM(Number_of_Pallet) AS Total_Pallets
+        FROM
+            ws_hub.ipg_ez
+        WHERE
+            Site = 'AMJK' AND Product_Group = 'SW'
+                AND Carrier_ID IS NOT NULL
+                AND rpt_run_time = '16:00:00'
+        GROUP BY Site , Product_Group , Year , Month , left(Product_Code,3);
+
+        """
+    popular_item = pd.read_sql(query, conn)
+
+    # Close the database connection
+    conn.close()
+
+    # Return the DataFrame
+    return popular_item
