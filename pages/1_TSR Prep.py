@@ -15,7 +15,7 @@ DB = 'ws_hub_db'
 st.set_page_config(page_title="TSR Prep", page_icon="🚚", layout='wide')
 
 st.markdown("# TSR Prep")
-st.sidebar.header("TSR Prep")
+# st.sidebar.header("TSR Prep")
 st.write(
     """ Update twice a day approx. 8AM and 4PM CST """
 )
