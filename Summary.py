@@ -7,7 +7,7 @@ from helper import ship_tomorrow, ship_tomorrow_to_houston, ship_tomorrow_to_rem
 import plotly.express as px
 
 
-st.set_page_config(page_title="Summary", page_icon="📰", layout='wide')
+st.set_page_config(page_title="Warship-Summary", page_icon="📰", layout='wide')
 st.markdown("# Summary")
 
 
