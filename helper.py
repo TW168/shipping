@@ -43,7 +43,7 @@ def connect_to_database(section="DEFAULT", dbms="mysql"):
         ValueError: If the specified section is not found in the config file.
     """
     config = configparser.ConfigParser()
-    config.read("config.py")
+    config.read("config.ini")
     if section not in config.sections():
         raise ValueError(f"Section {section} not found in config.py")
 
@@ -60,7 +60,7 @@ def connect_to_database(section="DEFAULT", dbms="mysql"):
     engine = create_engine(connection_string)
     # Test the connection by executing a simple query
     conn = engine.connect()
-    print(f"Successfully connected to {dbms.upper()} database: {database}")
+    print(datetime.now(), f"Successfully connected to {dbms.upper()} database: {database}")
     
     return conn
 
@@ -111,7 +111,7 @@ def extract_EZ_rpt_date_time(file_name):
         else:
             return None
     except Exception as e:
-        print("def extract_EZ_rpt_date_time an error occurred:", e)
+        print(datetime.now(), "def extract_EZ_rpt_date_time an error occurred:", e)
         return None
 
 
@@ -262,7 +262,7 @@ def ship_tomorrow_to_houston(rpt_date, truck_dt):
                 order by Truck_Appointment_Date, product_Group, Site; """
         result = pd.read_sql(qry, conn, params=[rpt_date, day])
         results.append(result)
-        print (results)
+        # print (results)
     return pd.concat(results)
 
 
@@ -285,7 +285,7 @@ def ship_tomorrow_to_remington(rpt_date, truck_dt):
             order by Truck_Appointment_Date, product_Group, Site; """ 
         result = pd.read_sql(qry, conn, params=[rpt_date, day])
         results.append(result)
-        print(results)
+        # print(results)
     return pd.concat(results)
 
 
@@ -293,6 +293,8 @@ def ez_analyst(date):
     conn = connect_to_database(DB, dbms='mysql') 
     qry = f"SELECT IF(DAYOFWEEK(rpt_run_date) = 5, DATE_ADD(rpt_run_date, INTERVAL 1 DAY), rpt_run_date) AS `start_date`, CAST(SUM(CASE WHEN rpt_run_time = '09:00:00' AND BL_number LIKE 'WZ%' AND Product_Code NOT LIKE 'INSER%' THEN Pick_Weight ELSE 0 END) AS UNSIGNED) AS `WZ (lbs) 9AM`, CAST(SUM(CASE WHEN rpt_run_time = '09:00:00' AND BL_number NOT LIKE 'WZ%' AND Product_Code NOT LIKE 'INSER%' AND truck_appointment_date IS NULL THEN Pick_Weight ELSE 0 END) AS UNSIGNED) AS `Available to Ship (lbs) 9AM`, CAST(SUM(CASE WHEN rpt_run_time = '16:00:00' AND truck_appointment_date = IF(DAYOFWEEK(rpt_run_date) = 6, DATE_ADD(rpt_run_date, INTERVAL 2 DAY), DATE_ADD(rpt_run_date, INTERVAL 1 DAY)) AND BL_number NOT LIKE 'WZ%' AND Product_Code NOT LIKE 'INSER%' THEN Pick_Weight ELSE 0 END) AS UNSIGNED) AS `Ship tomorrow (lbs) 4PM` FROM ipg_ez WHERE site = 'AMJK' AND product_group = 'SW' AND rpt_run_time IN ('09:00:00', '16:00:00') AND rpt_run_date = %s GROUP BY `start_date`"
     df = pd.read_sql_query(qry, conn, params=[date])
+    print(datetime.now(), "def ez_analyst(date) executed")
+    conn.close()
     return df
 
 def avail_to_ship_AM(site, group, rpt_date):
@@ -362,3 +364,6 @@ def get_popular_products():
 
     # Return the DataFrame
     return popular_item
+
+
+    

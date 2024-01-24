@@ -8,7 +8,7 @@ st.set_page_config(page_title="Warship-Ship Log", page_icon="📰", layout='wide
 st.title("Stretch Film Shipment Log")
 
 # Connect to the database
-conn = st.experimental_connection("ws_hub", type="sql")
+# conn = st.connection("ws_hub", type="sql")
 
 # show daily Stretch film shipment log
 with st.expander('Stretch Film Shipment Log', expanded=True):

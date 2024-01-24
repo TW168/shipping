@@ -11,6 +11,7 @@ from streamlit_folium import st_folium
 
 # Change database location
 DB = 'ws_hub_db'
+conn = connect_to_database(DB)
 
 st.set_page_config(page_title="Warship-TSR Prep", page_icon="🚚", layout='wide')
 
@@ -32,7 +33,7 @@ with st.container():
         if uploaded_file is not None:
             file_name = uploaded_file.name
             file_size = uploaded_file.size
-            conn = connect_to_database(DB)
+            
             result = conn.execute("SELECT * FROM ipg_ez WHERE file_name = %s AND file_size = %s", (file_name, file_size)).fetchone()
             st.write(file_name)
             if result:
@@ -51,9 +52,9 @@ with st.container():
                 cleaned_df['file_size'] = file_size
                 cleaned_df.to_sql('ipg_ez', con=conn, if_exists='append', index=False)
                 conn.close()
-    
+  
 with st.container():
-    conn = connect_to_database(DB)
+    
     with st.expander("Ship list", expanded=True):
         col1, col2 = st.columns(2)
         with col1:
