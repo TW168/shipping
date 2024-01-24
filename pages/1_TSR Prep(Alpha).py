@@ -51,7 +51,7 @@ with st.container():
                 cleaned_df['file_name'] = file_name
                 cleaned_df['file_size'] = file_size
                 cleaned_df.to_sql('ipg_ez', con=conn, if_exists='append', index=False)
-                conn.close()
+                #conn.close()
   
 with st.container():
     

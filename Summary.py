@@ -2,10 +2,11 @@
 from datetime import datetime, timedelta
 import streamlit as st
 import pandas as pd 
-from helper import ship_tomorrow, ship_tomorrow_to_houston, ship_tomorrow_to_remington, ez_analyst, get_popular_products
+from helper import ship_tomorrow, ship_tomorrow_to_houston, ship_tomorrow_to_remington, ez_analyst, get_popular_products, connect_to_database
 import plotly.graph_objs as go
 import plotly.express as px
 
+DB='ws_hub_db'
 st.set_page_config(page_title="Warship-Summary", page_icon="📰", layout='wide')
 
 # Connect to the database
@@ -46,79 +47,32 @@ try:
             rpt_date = st.date_input('Choose a date')
             df = ez_analyst(rpt_date)
             st.dataframe(df)
-            # combined_query = """
-            # SELECT
-            #     SUM(CASE WHEN BL_Number NOT LIKE 'WZ%' AND BL_Number LIKE 'W%' AND Truck_Appointment_Date IS NULL THEN Pick_Weight ELSE 0 END) AS 'Avail. to ship',
-            #     SUM(CASE WHEN BL_Number LIKE 'WZ%' THEN Pick_Weight ELSE 0 END) AS 'WZ',
-            #     DATE_FORMAT(rpt_run_date, '%Y-%m') AS 'Year-Month',
-            #     rpt_run_time
-            # FROM
-            #     ipg_ez
-            # WHERE
-            #     site = 'AMJK'
-            #     AND Product_Group = 'SW'
-            #     AND rpt_run_time = '09:00:00'
-            # GROUP BY
-            #     DATE_FORMAT(rpt_run_date, '%Y-%m'),
-            #     rpt_run_time;
-            # """
-            # # Execute the query and load data into DataFrames
-            # df = conn.query(combined_query)
-
-#             # Format columns to include commas for thousands separator
-#             df['Avail. to ship'] = df['Avail. to ship'].apply(lambda x:"{:,.0f}".format(x))
-#             df['WZ'] = df['WZ'].apply(lambda x: "{:,.0f}".format(x))
-
-#             # Rename the columns for clarity
-#             df.rename(columns={'Avail. to ship':'Available to Ship','WZ': 'WZ (lbs)'}, inplace=True)
-            
-#             # Create a bar chart using Plotly
-#             fig = go.Figure()
-
-#             # Add 'Avail. to ship' as a bar
-#             fig.add_trace(go.Bar(x=df['Year-Month'], y=df['Available to Ship'], name='Available to Ship'))
-
-#             # Add 'WZ' as a bar
-#             fig.add_trace(go.Bar(x=df['Year-Month'], y=df['WZ (lbs)'], name='WZ (lbs)'))
-
-#             # Update layout for the chart
-#             fig.update_layout(
-#                 barmode='group',  # This will group the bars
-#                 title='Avail. to Ship and WZ by Year-Month'
-#             )
-
-#             # Display the chart using Streamlit
-#             # st.title('Avail. to Ship and WZ Data')
-#             st.plotly_chart(fig, use_container_width=True)
-
 except Exception as e:
     print (datetime.now(), e)
+   
+conn = connect_to_database(DB, dbms='mysql') 
+am_qry = "SELECT rpt_run_date, SUM(pick_weight) AS AM_ready_to_ship FROM ipg_ez WHERE site = 'AMJK' AND truck_appointment_date IS NULL AND Product_Group = 'SW'AND rpt_run_time = '09:00:00'    AND BL_Number LIKE 'WZ%'    AND Product_Code not like 'INST%'GROUP BY    rpt_run_date;"
+am_df = pd.read_sql_query(am_qry, conn)
 
-# with st.container():
-#     with st.expander('New Expander'):
-#         # Open your SQL file
-#         with open('sql\AMJK_SW_TruckAppointmentSummary.sql', 'r') as sql_file:
-#             sql_qry = sql_file.read()
-#         df = conn.query(sql_qry)
-        
-#         # Convert the 'Truck_Appointment_Date' column to datetime format
-#         df['Truck_Appointment_Date'] = pd.to_datetime(df['Truck_Appointment_Date'])
-#         df['Appointment_Date'] = pd.to_datetime(df['Truck_Appointment_Date']).dt.date
-#         # Extract the year month from the Truck_Appointment_Date
-#         df['Year'] = df['Truck_Appointment_Date'].dt.year
-#         df['Month'] = df['Truck_Appointment_Date'].dt.month
-#         years = [2022, 2023] # Hard code the years because too many input error in the ipg_ez report
-#         # Create a selectbox for the years
-#         selected_year = st.selectbox('Select a Year', options=years)
-#         # Filter the dataframe based on the selected year
-#         df_filtered = df[df['Year'] == selected_year]
-#         # Display the filtered dataframe
-#         df_filtered['lbs'] = df_filtered['lbs'].apply(lambda x:"{:,.0f}".format(x))
-#         df_filtered['plt'] = df_filtered['plt'].apply(lambda x:"{:,.0f}".format(x))
-#         st.dataframe(df_filtered[['Appointment_Date', 'Year', 'Month','BL_Number', 'lbs', 'plt', 'Truck_Appointment_Date']])
-        
+ship_tomorrow_qry = "SELECT    rpt_run_date,    SUM(pick_weight) AS ship_tomorrow FROM    ipg_ez WHERE    site = 'AMJK'    AND truck_appointment_date IS NOT NULL    AND Product_Group = 'SW'    AND rpt_run_time = '16:00:00'    AND BL_Number NOT LIKE 'WZ%'    AND Product_Code not like 'INST%' GROUP BY    rpt_run_date;"
+ship_tmr_df = pd.read_sql_query(ship_tomorrow_qry, conn)
+merged_df = pd.merge(am_df, ship_tmr_df, on='rpt_run_date') 
+merged_df = merged_df.sort_values(by='rpt_run_date', ascending=False)
 
+# Convert 'rpt_run_date' to datetime format
+merged_df['rpt_run_date'] = pd.to_datetime(merged_df['rpt_run_date'])
 
+# Create a new column for year and month
+merged_df['Year'] = merged_df['rpt_run_date'].dt.year
+merged_df['Month'] = merged_df['rpt_run_date'].dt.month
+
+# Create the Plotly Express line chart
+fig = px.line(merged_df, x='rpt_run_date', y=['AM_ready_to_ship', 'ship_tomorrow'],
+              labels={'value': 'Count'}, title='Shipments Over Time',
+              category_orders={'Month': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]})
+
+# Show the plot
+st.plotly_chart(fig, use_container_width=True)
         
 
 
